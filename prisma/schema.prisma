@@ -1,0 +1,206 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  OWNER
+  MANAGER
+  EMPLOYEE
+  CLIENT
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ItemType {
+  PRODUCT
+  SERVICE
+}
+
+// Здесь будут определены модели данных
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password      String?  // Может быть null для входа через email
+  name          String
+  about         String?
+  avatar        String?
+  role          UserRole @default(OWNER)
+  lastLoginAt   DateTime?
+  loginAttempts Int      @default(0)
+  isBlocked     Boolean  @default(false)
+  isEmailVerified Boolean @default(false)
+  emailVerificationToken String?
+  emailVerificationTokenExpires DateTime?
+  passwordResetToken String?
+  passwordResetTokenExpires DateTime?
+  emailLoginToken String?
+  emailLoginTokenExpires DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Связи с бизнесами
+  ownedBusinesses    Business[] @relation("BusinessOwner")
+  managedBusinesses  Business[] @relation("BusinessManager")
+  employeeBusinesses Business[] @relation("BusinessEmployee")
+
+  // Связь с клиентской базой
+  clientBase ClientBase?
+
+  // Связь с заказами
+  orders    Order[]
+
+  @@index([email, role])
+  @@index([lastLoginAt])
+  @@index([emailVerificationToken])
+  @@index([passwordResetToken])
+  @@index([emailLoginToken])
+  @@map("users")
+}
+
+model Business {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Связи с пользователями
+  ownerId     String
+  owner       User     @relation("BusinessOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  
+  managers    User[]   @relation("BusinessManager")
+  employees   User[]   @relation("BusinessEmployee")
+
+  // Связь с клиентской базой
+  clientBase  ClientBase[]
+
+  // Связи с товарами и услугами
+  products    Product[]
+  services    Service[]
+
+  @@index([name])
+  @@index([isActive])
+  @@map("businesses")
+}
+
+model ClientBase {
+  id            String   @id @default(uuid())
+  name          String
+  phoneNumber   String
+  firstOrderAt  DateTime?
+  lastOrderAt   DateTime?
+  orderHistory  Json?    // История заказов в формате JSON
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Связи
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([phoneNumber])
+  @@index([isActive])
+  @@map("client_base")
+}
+
+model Order {
+  id          String      @id @default(uuid())
+  total       Decimal     @db.Decimal(10, 2)
+  status      OrderStatus @default(PENDING)
+  notes       String?     // Дополнительные заметки к заказу
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Связи
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       OrderItem[]
+
+  @@index([status, createdAt])
+  @@index([userId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String    @id @default(uuid())
+  itemType    ItemType
+  itemId      String    // Общее поле для ID товара или услуги
+  isUpsell    Boolean   @default(false)
+  price       Decimal   @db.Decimal(10, 2)
+  quantity    Int       @default(1)
+  notes       String?   // Дополнительные заметки к элементу заказа
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Связи
+  orderId     String
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  // Полиморфные связи с Product или Service
+  product     Product?  @relation(fields: [itemId], references: [id], map: "OrderItem_productId_fkey")
+  service     Service?  @relation(fields: [itemId], references: [id], map: "OrderItem_serviceId_fkey")
+
+  @@index([orderId, itemType])
+  @@index([itemId])
+  @@map("order_items")
+}
+
+model Product {
+  id          String      @id @default(uuid())
+  name        String
+  basePrice   Decimal     @db.Decimal(10, 2)
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Связи
+  businessId  String
+  business    Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  orderItems  OrderItem[]
+
+  @@index([name, businessId])
+  @@index([isActive])
+  @@map("products")
+}
+
+model Service {
+  id          String      @id @default(uuid())
+  name        String
+  basePrice   Decimal     @db.Decimal(10, 2)
+  duration    Int         // Длительность в минутах
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Связи
+  businessId  String
+  business    Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  orderItems  OrderItem[]
+
+  @@index([name, businessId])
+  @@index([isActive])
+  @@map("services")
+}
