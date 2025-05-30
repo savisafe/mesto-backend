@@ -26,15 +26,14 @@ npm install
 
 3. Создайте файл .env в корневой директории:
 ```env
-DATABASE_URL="postgresql://username:password@localhost:5432/mesto?schema=public"
-JWT_SECRET="your-secret-key"
-FRONTEND_URL="http://localhost:3000"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/mesto?schema=public"
+JWT_SECRET="your-super-secret-key"
+JWT_EXPIRES_IN="7d"
 MAIL_HOST="smtp.gmail.com"
-MAIL_PORT="587"
-MAIL_SECURE="false"
+MAIL_PORT=587
 MAIL_USER="your-email@gmail.com"
 MAIL_PASS="your-app-password"
-MAIL_FROM="noreply@mesto.com"
+MAIL_FROM="your-email@gmail.com"
 ```
 
 4. Примените миграции базы данных:

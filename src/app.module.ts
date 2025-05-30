@@ -13,10 +13,12 @@ import { MailModule } from './mail/mail.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    ThrottlerModule.forRoot([{
-      ttl: 60, // время в секундах
-      limit: 10, // максимальное количество запросов за ttl
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60, // время в секундах
+        limit: 10, // максимальное количество запросов за ttl
+      },
+    ]),
     AuthModule,
     PrismaModule,
     MailModule,

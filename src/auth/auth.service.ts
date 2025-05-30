@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
@@ -7,6 +11,7 @@ import { MailService } from '../mail/mail.service';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { Prisma } from '@prisma/client';
+import { User } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -25,7 +30,9 @@ export class AuthService {
       throw new BadRequestException('User with this email already exists');
     }
 
-    const hashedPassword = dto.password ? await bcrypt.hash(dto.password, 10) : '';
+    const hashedPassword = dto.password
+      ? await bcrypt.hash(dto.password, 10)
+      : '';
 
     const user = await this.prisma.user.create({
       data: {
@@ -52,26 +59,16 @@ export class AuthService {
       throw new UnauthorizedException('Account is blocked');
     }
 
-    // Если у пользователя нет пароля, отправляем ссылку для входа
-    if (!user.password) {
-      return this.sendEmailLoginLink(user.email);
+    if (user.password) {
+      const isPasswordValid = await bcrypt.compare(dto.password, user.password);
+      if (!isPasswordValid) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+    } else {
+      throw new UnauthorizedException('Password login is not available for this account');
     }
 
-    const isPasswordValid = await bcrypt.compare(dto.password, user.password);
-
-    if (!isPasswordValid) {
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          loginAttempts: user.loginAttempts + 1,
-          isBlocked: user.loginAttempts >= 4,
-        },
-      });
-
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    // Reset login attempts on successful login
+    // Сбрасываем счетчик попыток входа при успешном входе
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
@@ -83,32 +80,34 @@ export class AuthService {
     return this.generateTokens(user);
   }
 
-  async sendEmailLoginLink(email: string) {
+  async sendLoginLink(email: string) {
     const user = await this.prisma.user.findUnique({
       where: { email },
     });
 
     if (!user) {
-      // Don't reveal that the user doesn't exist
-      return { message: 'If your email is registered, you will receive a login link' };
+      throw new UnauthorizedException('Invalid credentials');
     }
 
-    const loginToken = uuidv4();
-    const loginTokenExpires = new Date();
-    loginTokenExpires.setMinutes(loginTokenExpires.getMinutes() + 15); // Токен действителен 15 минут
+    if (user.isBlocked) {
+      throw new UnauthorizedException('Account is blocked');
+    }
+
+    const token = Math.random().toString(36).substring(2, 15);
+    const expires = new Date();
+    expires.setMinutes(expires.getMinutes() + 15);
 
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
-        emailLoginToken: loginToken,
-        emailLoginTokenExpires: loginTokenExpires,
+        emailLoginToken: token,
+        emailLoginTokenExpires: expires,
       },
     });
 
-    // Отправляем письмо со ссылкой для входа
-    await this.mailService.sendLoginLink(email, loginToken);
+    await this.mailService.sendLoginLink(email, token);
 
-    return { message: 'If your email is registered, you will receive a login link' };
+    return { message: 'Login link sent to your email' };
   }
 
   async loginWithEmailToken(token: string) {
@@ -122,7 +121,11 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new BadRequestException('Invalid or expired login token');
+      throw new UnauthorizedException('Invalid or expired token');
+    }
+
+    if (user.isBlocked) {
+      throw new UnauthorizedException('Account is blocked');
     }
 
     // Очищаем токен после использования
@@ -132,14 +135,13 @@ export class AuthService {
         emailLoginToken: null,
         emailLoginTokenExpires: null,
         lastLoginAt: new Date(),
-        loginAttempts: 0,
       },
     });
 
     return this.generateTokens(user);
   }
 
-  private generateTokens(user: any) {
+  private generateTokens(user: User) {
     const payload = {
       sub: user.id,
       email: user.email,

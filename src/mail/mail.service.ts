@@ -10,7 +10,7 @@ export class MailService {
   async sendLoginLink(email: string, token: string) {
     try {
       const url = `${process.env.FRONTEND_URL}/login-with-email?token=${token}`;
-      
+
       this.logger.debug(`Sending login link to ${email}`);
       this.logger.debug(`Mail configuration:`, {
         host: process.env.MAIL_HOST,
@@ -35,4 +35,4 @@ export class MailService {
       throw error;
     }
   }
-} 
+}
