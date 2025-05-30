@@ -14,8 +14,8 @@ export class AuthController {
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
   @ApiBody({ type: RegisterDto })
-  @ApiResponse({ 
-    status: 201, 
+  @ApiResponse({
+    status: 201,
     description: 'User successfully registered',
     schema: {
       properties: {
@@ -26,13 +26,16 @@ export class AuthController {
             id: { type: 'string' },
             email: { type: 'string' },
             name: { type: 'string' },
-            role: { type: 'string' }
-          }
-        }
-      }
-    }
+            role: { type: 'string' },
+          },
+        },
+      },
+    },
   })
-  @ApiResponse({ status: 400, description: 'User with this email already exists' })
+  @ApiResponse({
+    status: 400,
+    description: 'User with this email already exists',
+  })
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
@@ -41,8 +44,8 @@ export class AuthController {
   @Post('login')
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiBody({ type: LoginDto })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'User successfully logged in',
     schema: {
       properties: {
@@ -53,11 +56,11 @@ export class AuthController {
             id: { type: 'string' },
             email: { type: 'string' },
             name: { type: 'string' },
-            role: { type: 'string' }
-          }
-        }
-      }
-    }
+            role: { type: 'string' },
+          },
+        },
+      },
+    },
   })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @Throttle({ default: { limit: 5, ttl: 60000 } })
@@ -67,13 +70,13 @@ export class AuthController {
 
   @Post('login/email')
   @ApiOperation({ summary: 'Send login link to email' })
-  @ApiBody({ 
+  @ApiBody({
     schema: {
       type: 'object',
       properties: {
-        email: { type: 'string', format: 'email' }
-      }
-    }
+        email: { type: 'string', format: 'email' },
+      },
+    },
   })
   @ApiResponse({ status: 200, description: 'Login link sent to email' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
@@ -84,8 +87,8 @@ export class AuthController {
 
   @Get('login/email/:token')
   @ApiOperation({ summary: 'Login with email token' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'User successfully logged in',
     schema: {
       properties: {
@@ -96,11 +99,11 @@ export class AuthController {
             id: { type: 'string' },
             email: { type: 'string' },
             name: { type: 'string' },
-            role: { type: 'string' }
-          }
-        }
-      }
-    }
+            role: { type: 'string' },
+          },
+        },
+      },
+    },
   })
   @ApiResponse({ status: 401, description: 'Invalid or expired token' })
   @Throttle({ default: { limit: 5, ttl: 60000 } })

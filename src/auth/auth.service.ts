@@ -9,8 +9,6 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { MailService } from '../mail/mail.service';
 import * as bcrypt from 'bcrypt';
-import { v4 as uuidv4 } from 'uuid';
-import { Prisma } from '@prisma/client';
 import { User } from '@prisma/client';
 
 @Injectable()
@@ -65,7 +63,9 @@ export class AuthService {
         throw new UnauthorizedException('Invalid credentials');
       }
     } else {
-      throw new UnauthorizedException('Password login is not available for this account');
+      throw new UnauthorizedException(
+        'Password login is not available for this account',
+      );
     }
 
     // Сбрасываем счетчик попыток входа при успешном входе
