@@ -52,7 +52,7 @@ Content-Type: application/json
 {
   "email": "user@example.com",
   "password": "password123",
-  "name": "John",
+  "name": "John Doe"
 }
 ```
 
@@ -112,9 +112,8 @@ Authorization: Bearer <jwt_token>
 Content-Type: application/json
 
 {
-  "firstName": "John",
-  "lastName": "Doe",
-  "phone": "+1234567890"
+  "name": "Updated Name",
+  "about": "Updated about"
 }
 ```
 
@@ -129,8 +128,7 @@ Content-Type: application/json
 {
   "name": "My Business",
   "description": "Business description",
-  "address": "123 Main St",
-  "phone": "+1234567890"
+  "isActive": true
 }
 ```
 
@@ -143,6 +141,24 @@ Authorization: Bearer <jwt_token>
 #### Получение бизнеса по ID
 ```http
 GET /businesses/:id
+Authorization: Bearer <jwt_token>
+```
+
+#### Обновление бизнеса
+```http
+PATCH /businesses/:id
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+
+{
+  "name": "Updated Business Name",
+  "description": "Updated description"
+}
+```
+
+#### Удаление бизнеса
+```http
+DELETE /businesses/:id
 Authorization: Bearer <jwt_token>
 ```
 
@@ -246,6 +262,9 @@ Authorization: Bearer <jwt_token>
 - Все запросы валидируются
 - Настроен CORS для безопасной работы с фронтендом
 - Nodemailer for secure email sending
+- Rate limiting (50 запросов за 15 минут)
+- Throttling (10 запросов в минуту)
+- Helmet для HTTP заголовков
 
 ## Разработка
 

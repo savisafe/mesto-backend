@@ -5,7 +5,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { MailModule } from './mail/mail.module';
-import { securityConfig } from './config/security.config';
+import { BusinessesModule } from './businesses/businesses.module';
 
 @Module({
   imports: [
@@ -14,14 +14,15 @@ import { securityConfig } from './config/security.config';
     }),
     ThrottlerModule.forRoot([
       {
-        ttl: securityConfig.throttler.ttl,
-        limit: securityConfig.throttler.limit,
+        ttl: 60,
+        limit: 10,
       },
     ]),
     PrismaModule,
     AuthModule,
     UsersModule,
     MailModule,
+    BusinessesModule,
   ],
 })
 export class AppModule {}
