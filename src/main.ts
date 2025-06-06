@@ -2,9 +2,15 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as helmet from 'helmet';
+import { securityConfig } from './config/security.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Применяем настройки безопасности
+  app.use(helmet.default(securityConfig.helmet));
+  app.enableCors(securityConfig.cors);
 
   // Глобальная валидация
   app.useGlobalPipes(
@@ -15,16 +21,9 @@ async function bootstrap() {
     }),
   );
 
-  // Настройка CORS
-  app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    credentials: true,
-  });
-
   const config = new DocumentBuilder()
     .setTitle('Mesto API')
-    .setDescription('The Mesto API description')
+    .setDescription('API для системы управления бизнесом')
     .setVersion('1.0')
     .addBearerAuth()
     .build();

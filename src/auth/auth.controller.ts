@@ -1,9 +1,19 @@
-import { Controller, Post, Body, UseGuards, Get, Param } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Get,
+  Param,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { securityConfig } from '../config/security.config';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -36,40 +46,35 @@ export class AuthController {
     status: 400,
     description: 'User with this email already exists',
   })
-  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @Throttle({
+    default: {
+      limit: securityConfig.throttler.limit,
+      ttl: securityConfig.throttler.ttl * 1000,
+    },
+  })
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
   @Post('login')
-  @ApiOperation({ summary: 'Login with email and password' })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Вход в систему' })
   @ApiBody({ type: LoginDto })
-  @ApiResponse({
-    status: 200,
-    description: 'User successfully logged in',
-    schema: {
-      properties: {
-        access_token: { type: 'string' },
-        user: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' },
-            email: { type: 'string' },
-            name: { type: 'string' },
-            role: { type: 'string' },
-          },
-        },
-      },
+  @ApiResponse({ status: 200, description: 'Успешный вход' })
+  @ApiResponse({ status: 401, description: 'Неверные учетные данные' })
+  @ApiResponse({ status: 400, description: 'Неверный формат данных' })
+  @Throttle({
+    default: {
+      limit: securityConfig.throttler.limit,
+      ttl: securityConfig.throttler.ttl * 1000,
     },
   })
-  @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
-  async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(@Body() loginDto: LoginDto) {
+    return this.authService.login(loginDto);
   }
 
   @Post('login/email')
-  @ApiOperation({ summary: 'Send login link to email' })
+  @ApiOperation({ summary: 'Отправка ссылки для входа на email' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -78,11 +83,19 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({ status: 200, description: 'Login link sent to email' })
-  @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @ApiResponse({
+    status: 200,
+    description: 'Ссылка для входа отправлена на email',
+  })
+  @ApiResponse({ status: 401, description: 'Неверные учетные данные' })
+  @Throttle({
+    default: {
+      limit: securityConfig.throttler.limit,
+      ttl: securityConfig.throttler.ttl * 1000,
+    },
+  })
   async sendLoginLink(@Body('email') email: string) {
-    return this.authService.sendLoginLink(email);
+    return this.authService.sendEmailLoginLink(email);
   }
 
   @Get('login/email/:token')
@@ -106,7 +119,12 @@ export class AuthController {
     },
   })
   @ApiResponse({ status: 401, description: 'Invalid or expired token' })
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Throttle({
+    default: {
+      limit: securityConfig.throttler.limit,
+      ttl: securityConfig.throttler.ttl * 1000,
+    },
+  })
   async loginWithEmailToken(@Param('token') token: string) {
     return this.authService.loginWithEmailToken(token);
   }

@@ -4,15 +4,16 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { MailModule } from '../mail/mail.module';
+import { securityConfig } from '../config/security.config';
 
 @Module({
   imports: [
     PrismaModule,
-    MailModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'your-secret-key',
-      signOptions: { expiresIn: '24h' },
+      secret: securityConfig.jwt.secret,
+      signOptions: { expiresIn: securityConfig.jwt.expiresIn },
     }),
+    MailModule,
   ],
   controllers: [AuthController],
   providers: [AuthService],

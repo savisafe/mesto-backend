@@ -1,38 +1,42 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { MailerService } from '@nestjs-modules/mailer';
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import * as nodemailer from 'nodemailer';
+import * as handlebars from 'handlebars';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class MailService {
-  private readonly logger = new Logger(MailService.name);
+  private transporter: nodemailer.Transporter;
 
-  constructor(private mailerService: MailerService) {}
+  constructor(private configService: ConfigService) {
+    this.transporter = nodemailer.createTransport({
+      host: this.configService.get('MAIL_HOST'),
+      port: this.configService.get('MAIL_PORT'),
+      secure: false,
+      auth: {
+        user: this.configService.get('MAIL_USER'),
+        pass: this.configService.get('MAIL_PASS'),
+      },
+    });
+  }
 
   async sendLoginLink(email: string, token: string) {
-    try {
-      const url = `${process.env.FRONTEND_URL}/login-with-email?token=${token}`;
+    const template = this.loadTemplate('login-link');
+    const loginUrl = `${this.configService.get('FRONTEND_URL')}/auth/login/email/${token}`;
+    const html = template({ loginUrl });
 
-      this.logger.debug(`Sending login link to ${email}`);
-      this.logger.debug(`Mail configuration:`, {
-        host: process.env.MAIL_HOST,
-        port: process.env.MAIL_PORT,
-        user: process.env.MAIL_USER,
-        from: process.env.MAIL_FROM,
-      });
+    await this.transporter.sendMail({
+      from: this.configService.get('MAIL_FROM'),
+      to: email,
+      subject: 'Вход в систему',
+      html,
+    });
+  }
 
-      await this.mailerService.sendMail({
-        to: email,
-        subject: 'Ссылка для входа',
-        template: 'login-link',
-        context: {
-          url,
-          email,
-        },
-      });
-
-      this.logger.debug(`Login link sent successfully to ${email}`);
-    } catch (error) {
-      this.logger.error(`Failed to send login link to ${email}:`, error);
-      throw error;
-    }
+  private loadTemplate(name: string): handlebars.TemplateDelegate {
+    const templatePath = path.join(__dirname, 'templates', `${name}.hbs`);
+    const template = fs.readFileSync(templatePath, 'utf-8');
+    return handlebars.compile(template);
   }
 }

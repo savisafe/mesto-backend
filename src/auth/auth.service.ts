@@ -7,9 +7,9 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { MailService } from '../mail/mail.service';
 import * as bcrypt from 'bcrypt';
 import { User } from '@prisma/client';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -80,17 +80,13 @@ export class AuthService {
     return this.generateTokens(user);
   }
 
-  async sendLoginLink(email: string) {
+  async sendEmailLoginLink(email: string) {
     const user = await this.prisma.user.findUnique({
       where: { email },
     });
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
-    }
-
-    if (user.isBlocked) {
-      throw new UnauthorizedException('Account is blocked');
     }
 
     const token = Math.random().toString(36).substring(2, 15);
