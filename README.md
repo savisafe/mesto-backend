@@ -1,50 +1,92 @@
 # Mesto Backend API
 
 ## Описание
-Backend API для сервиса Mesto, разработанный с использованием NestJS, Prisma и PostgreSQL.
+Backend API для сервиса Mesto, разработанный с использованием NestJS, Prisma и PostgreSQL. Система управления бизнесами с поддержкой JWT авторизации и CRUD операций для бизнесов.
 
 ## Технологии
-- NestJS
-- Prisma ORM
-- PostgreSQL
-- JWT Authentication
-- TypeScript
-- Nodemailer for email sending
+- **NestJS** - Progressive Node.js framework
+- **Prisma ORM** - Database toolkit
+- **PostgreSQL** - Relational database
+- **JWT Authentication** - Secure token-based auth
+- **TypeScript** - Type-safe JavaScript
+- **Nodemailer** - Email sending
+- **Handlebars** - Email templates
+- **bcrypt** - Password hashing
+- **Swagger** - API documentation
 
 ## Установка и запуск
 
-1. Клонируйте репозиторий:
+### 1. Клонируйте репозиторий:
 ```bash
 git clone <repository-url>
 cd mesto-backend
 ```
 
-2. Установите зависимости:
+### 2. Установите зависимости:
 ```bash
 npm install
 ```
 
-3. Создайте файл .env в корневой директории:
+### 3. Настройте базу данных:
+```bash
+# Запустите PostgreSQL (если не запущен)
+brew services start postgresql@14
+
+# Создайте базу данных
+createdb mesto
+```
+
+### 4. Создайте файл `.env` в корневой директории:
 ```env
+# Database Configuration
 DATABASE_URL="postgresql://saveliytkachenko@localhost:5432/mesto?schema=public"
+
+# JWT Configuration
+JWT_SECRET="your-super-secret-jwt-key-change-this-in-production"
+JWT_EXPIRES_IN="7d"
+
+# Mail Configuration
+MAIL_HOST="smtp.gmail.com"
+MAIL_PORT=587
+MAIL_USER="your-email@gmail.com"
+MAIL_PASS="your-app-password"
+MAIL_FROM="noreply@mesto.com"
+
+# Frontend Configuration
+FRONTEND_URL="http://localhost:3000"
+
+# Application Configuration
+NODE_ENV="development"
 PORT=3000
 ```
 
-4. Примените миграции базы данных:
+### 5. Примените миграции базы данных:
 ```bash
-npx prisma migrate dev
+npx prisma migrate deploy
 ```
 
-5. Запустите приложение:
+### 6. Запустите приложение:
 ```bash
 npm run start:dev
 ```
 
 ## API Endpoints
 
-### Авторизация
+### 🏠 Главная страница
 
-#### Регистрация
+#### Получение приветственного сообщения
+```http
+GET /
+```
+
+**Ответ:**
+```json
+"Hello World!"
+```
+
+### 🔐 Авторизация
+
+#### Регистрация нового пользователя
 ```http
 POST /auth/register
 Content-Type: application/json
@@ -52,11 +94,28 @@ Content-Type: application/json
 {
   "email": "user@example.com",
   "password": "password123",
-  "name": "John Doe"
+  "name": "John Doe",
+  "phone": "+1234567890"
 }
 ```
 
-#### Вход с паролем
+**Ответ (201):**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "name": "John Doe",
+    "role": "OWNER"
+  }
+}
+```
+
+**Ошибки:**
+- `400` - Пользователь с таким email уже существует или ошибка валидации
+
+#### Вход в систему
 ```http
 POST /auth/login
 Content-Type: application/json
@@ -67,57 +126,111 @@ Content-Type: application/json
 }
 ```
 
-#### Вход по email (без пароля)
-```http
-GET /auth/login-with-email?email=user@example.com
-```
-
-#### Вход по ссылке из email
-```http
-GET /auth/login-with-email/:token
-```
-
-### Ответы авторизации
-
-#### Успешная авторизация
+**Ответ (200):**
 ```json
 {
-  "access_token": "jwt_token",
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
-    "id": "user_id",
+    "id": "uuid",
     "email": "user@example.com",
     "name": "John Doe",
-    "role": "CLIENT"
+    "role": "OWNER"
   }
 }
 ```
 
-#### Ошибки
-- `400 Bad Request` - Неверный формат данных
-- `401 Unauthorized` - Неверные учетные данные
-- `403 Forbidden` - Аккаунт заблокирован
+**Ошибки:**
+- `401` - Неверные учетные данные
+- `400` - Неверный формат данных
 
-### Пользователи
-
-#### Получение профиля текущего пользователя
+#### Отправка ссылки для входа на email
 ```http
-GET /users/me
-Authorization: Bearer <jwt_token>
-```
-
-#### Обновление профиля
-```http
-PATCH /users/me
-Authorization: Bearer <jwt_token>
+POST /auth/login/email
 Content-Type: application/json
 
 {
-  "name": "Updated Name",
-  "about": "Updated about"
+  "email": "user@example.com"
 }
 ```
 
-### Бизнесы
+**Ответ (200):**
+```json
+{
+  "message": "Login link sent to your email"
+}
+```
+
+**Ошибки:**
+- `401` - Неверные учетные данные
+- `400` - Неверный формат данных
+
+#### Вход по ссылке из email
+```http
+GET /auth/login/email/{token}
+```
+
+**Ответ (200):**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "name": "John Doe",
+    "role": "OWNER"
+  }
+}
+```
+
+**Ошибки:**
+- `401` - Неверный или истекший токен
+
+#### Подтверждение email адреса
+```http
+GET /auth/verify-email/{token}
+```
+
+**Ответ (200):**
+```json
+{
+  "message": "Email successfully verified",
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "name": "John Doe",
+    "isEmailVerified": true
+  }
+}
+```
+
+**Ошибки:**
+- `400` - Неверный или истекший токен подтверждения
+
+#### Повторная отправка письма с подтверждением
+```http
+POST /auth/resend-verification
+Content-Type: application/json
+
+{
+  "email": "user@example.com"
+}
+```
+
+**Ответ (200):**
+```json
+{
+  "message": "Verification email sent successfully"
+}
+```
+
+**Ошибки:**
+- `400` - Пользователь не найден или email уже подтвержден
+
+### 👤 Пользователи
+
+> **Примечание:** Модуль пользователей пока не реализован полностью. Endpoints будут добавлены в будущих версиях.
+
+### 🏢 Бизнесы
 
 #### Создание нового бизнеса
 ```http
@@ -132,300 +245,439 @@ Content-Type: application/json
 }
 ```
 
-#### Получение списка бизнесов
+**Ответ (201):**
+```json
+{
+  "id": "uuid",
+  "name": "My Business",
+  "description": "Business description",
+  "isActive": true,
+  "createdAt": "2025-01-13T12:00:00.000Z",
+  "updatedAt": "2025-01-13T12:00:00.000Z",
+  "ownerId": "uuid",
+  "owner": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "name": "John Doe"
+  },
+  "managers": [],
+  "employees": []
+}
+```
+
+**Ошибки:**
+- `400` - Ошибка валидации
+- `401` - Неавторизованный доступ
+
+#### Получение всех бизнесов текущего пользователя
 ```http
 GET /businesses
 Authorization: Bearer <jwt_token>
 ```
 
+**Ответ (200):**
+```json
+[
+  {
+    "id": "uuid",
+    "name": "My Business",
+    "description": "Business description",
+    "isActive": true,
+    "createdAt": "2025-01-13T12:00:00.000Z",
+    "updatedAt": "2025-01-13T12:00:00.000Z",
+    "ownerId": "uuid",
+    "owner": {
+      "id": "uuid",
+      "email": "user@example.com",
+      "name": "John Doe"
+    },
+    "managers": [],
+    "employees": []
+  }
+]
+```
+
+**Ошибки:**
+- `401` - Неавторизованный доступ
+
 #### Получение бизнеса по ID
 ```http
-GET /businesses/:id
+GET /businesses/{id}
 Authorization: Bearer <jwt_token>
 ```
 
+**Ответ (200):**
+```json
+{
+  "id": "uuid",
+  "name": "My Business",
+  "description": "Business description",
+  "isActive": true,
+  "createdAt": "2025-01-13T12:00:00.000Z",
+  "updatedAt": "2025-01-13T12:00:00.000Z",
+  "ownerId": "uuid",
+  "owner": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "name": "John Doe"
+  },
+  "managers": [],
+  "employees": []
+}
+```
+
+**Ошибки:**
+- `404` - Бизнес не найден
+- `401` - Неавторизованный доступ
+
 #### Обновление бизнеса
 ```http
-PATCH /businesses/:id
+PATCH /businesses/{id}
 Authorization: Bearer <jwt_token>
 Content-Type: application/json
 
 {
   "name": "Updated Business Name",
-  "description": "Updated description"
+  "description": "Updated description",
+  "isActive": false
 }
 ```
+
+**Ответ (200):**
+```json
+{
+  "id": "uuid",
+  "name": "Updated Business Name",
+  "description": "Updated description",
+  "isActive": false,
+  "createdAt": "2025-01-13T12:00:00.000Z",
+  "updatedAt": "2025-01-13T12:00:00.000Z",
+  "ownerId": "uuid",
+  "owner": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "name": "John Doe"
+  },
+  "managers": [],
+  "employees": []
+}
+```
+
+**Ошибки:**
+- `404` - Бизнес не найден
+- `400` - Ошибка валидации
+- `401` - Неавторизованный доступ
 
 #### Удаление бизнеса
 ```http
-DELETE /businesses/:id
+DELETE /businesses/{id}
 Authorization: Bearer <jwt_token>
 ```
 
-### Заказы
-
-#### Создание нового заказа
-```http
-POST /orders
-Authorization: Bearer <jwt_token>
-Content-Type: application/json
-
+**Ответ (200):**
+```json
 {
-  "businessId": "business_id",
-  "items": [
-    {
-      "itemType": "PRODUCT",
-      "productId": "product_id",
-      "quantity": 2
-    },
-    {
-      "itemType": "SERVICE",
-      "serviceId": "service_id",
-      "quantity": 1
-    }
-  ]
+  "message": "Business deleted successfully"
 }
 ```
 
-#### Получение списка заказов
+**Ошибки:**
+- `404` - Бизнес не найден
+- `401` - Неавторизованный доступ
+
+### 📊 Статус коды ответов
+
+- `200` - Успешный запрос
+- `201` - Ресурс успешно создан
+- `400` - Ошибка валидации или неверные данные
+- `401` - Неавторизованный доступ
+- `404` - Ресурс не найден
+- `500` - Внутренняя ошибка сервера
+
+### 🔒 Авторизация
+
+Все защищенные endpoints требуют JWT токен в заголовке:
 ```http
-GET /orders
 Authorization: Bearer <jwt_token>
 ```
 
-#### Получение заказа по ID
-```http
-GET /orders/:id
-Authorization: Bearer <jwt_token>
-```
+Токен получается при регистрации или входе в систему и действителен в течение 7 дней.
 
-### Продукты
+### 🚦 Rate Limiting
 
-#### Создание нового продукта
-```http
-POST /products
-Authorization: Bearer <jwt_token>
-Content-Type: application/json
+- **Общие запросы**: 10 запросов в минуту
+- **Повторная отправка верификации**: 3 запроса в минуту
+- **Защита от брутфорса**: 50 запросов за 15 минут
 
-{
-  "name": "Product Name",
-  "description": "Product description",
-  "price": 99.99,
-  "businessId": "business_id"
-}
-```
+## 📋 Примеры использования
 
-#### Получение списка продуктов
-```http
-GET /products
-Authorization: Bearer <jwt_token>
-```
+### Быстрый старт
 
-### Услуги
-
-#### Создание новой услуги
-```http
-POST /services
-Authorization: Bearer <jwt_token>
-Content-Type: application/json
-
-{
-  "name": "Service Name",
-  "description": "Service description",
-  "price": 149.99,
-  "duration": 60,
-  "businessId": "business_id"
-}
-```
-
-#### Получение списка услуг
-```http
-GET /services
-Authorization: Bearer <jwt_token>
-```
-
-## Роли пользователей
-
-Система поддерживает следующие роли:
-- Admin: Полный доступ ко всем функциям
-- Owner: Владелец бизнеса
-- Manager: Управляющий бизнесом
-- Employee: Сотрудник
-- Client: Клиент
-
-## Безопасность
-
-- Все пароли хешируются перед сохранением
-- JWT токены используются для аутентификации
-- Реализована защита от брутфорса
-- Поддерживается вход по email без пароля
-- Все запросы валидируются
-- Настроен CORS для безопасной работы с фронтендом
-- Nodemailer for secure email sending
-- Rate limiting (50 запросов за 15 минут)
-- Throttling (10 запросов в минуту)
-- Helmet для HTTP заголовков
-
-## Разработка
-
-Для запуска в режиме разработки:
+1. **Регистрация пользователя:**
 ```bash
+curl -X POST http://localhost:3000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "password": "123456", "name": "John Doe"}'
+```
+
+2. **Вход в систему:**
+```bash
+curl -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "password": "123456"}'
+```
+
+3. **Создание бизнеса:**
+```bash
+curl -X POST http://localhost:3000/businesses \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{"name": "My Business", "description": "Business description"}'
+```
+
+4. **Получение списка бизнесов:**
+```bash
+curl -X GET http://localhost:3000/businesses \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+### Полный цикл работы
+
+```bash
+# 1. Регистрация
+REGISTER_RESPONSE=$(curl -s -X POST http://localhost:3000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email": "test@example.com", "password": "123456", "name": "Test User"}')
+
+# 2. Извлечение токена
+TOKEN=$(echo $REGISTER_RESPONSE | jq -r '.access_token')
+
+# 3. Создание бизнеса
+curl -X POST http://localhost:3000/businesses \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"name": "Test Business", "description": "Test Description"}'
+
+# 4. Получение бизнесов
+curl -X GET http://localhost:3000/businesses \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+## 🗄️ Модель данных
+
+### User (Пользователь)
+- `id` - UUID
+- `email` - Email (уникальный)
+- `password` - Хешированный пароль (может быть null)
+- `name` - Имя пользователя
+- `about` - Описание пользователя
+- `avatar` - URL аватара
+- `role` - Роль (ADMIN, OWNER, MANAGER, EMPLOYEE, CLIENT)
+- `isEmailVerified` - Подтвержден ли email (временно всегда true)
+- `emailVerificationToken` - Токен подтверждения email (не используется)
+- `emailVerificationTokenExpires` - Срок действия токена (не используется)
+- `lastLoginAt` - Последний вход
+- `loginAttempts` - Количество попыток входа
+- `isBlocked` - Заблокирован ли аккаунт
+
+### Business (Бизнес)
+- `id` - UUID
+- `name` - Название бизнеса
+- `description` - Описание
+- `isActive` - Активен ли бизнес
+- `ownerId` - ID владельца
+- `managers` - Менеджеры
+- `employees` - Сотрудники
+
+### Order (Заказ)
+- `id` - UUID
+- `total` - Общая сумма
+- `status` - Статус (PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED)
+- `notes` - Заметки
+- `userId` - ID пользователя
+- `items` - Элементы заказа
+
+### Product/Service (Продукт/Услуга)
+- `id` - UUID
+- `name` - Название
+- `basePrice` - Базовая цена
+- `isActive` - Активен ли
+- `businessId` - ID бизнеса
+- `duration` - Длительность (только для услуг)
+
+## 🔒 Безопасность
+
+### Аутентификация
+- **JWT токены** для безопасной аутентификации
+- **Password hashing** с bcrypt
+- **Rate limiting** защита от брутфорса
+- **Token expiration** JWT токены действительны 7 дней
+
+### Защита от атак
+- **Throttling** - 10 запросов в минуту
+- **Rate limiting** - 50 запросов за 15 минут
+- **CORS** настроен для безопасной работы с фронтендом
+- **Helmet** для HTTP заголовков безопасности
+- **Input validation** все входящие данные валидируются
+
+### Email Security (временно отключено)
+- **SMTP authentication** для отправки писем (настраивается при необходимости)
+- **HTML templates** с безопасным рендерингом
+- **Token-based verification** вместо прямых ссылок
+
+## 🚀 Разработка
+
+### Текущий статус проекта
+
+✅ **Реализовано:**
+- JWT авторизация (регистрация, вход)
+- CRUD операции для бизнесов
+- Валидация данных с class-validator
+- Swagger документация
+- Rate limiting и безопасность
+- PostgreSQL интеграция с Prisma
+- Правильные HTTP статус коды
+
+🔄 **Временно отключено:**
+- Email verification (можно включить при настройке SMTP)
+- Отправка писем с подтверждением
+
+📋 **Планируется:**
+- Модуль пользователей (профиль, обновление)
+- Модуль заказов
+- Модуль продуктов/услуг
+- Система ролей и разрешений
+- Загрузка файлов
+- Уведомления
+
+### Команды разработки
+```bash
+# Запуск в режиме разработки
 npm run start:dev
-```
 
-Для сборки:
-```bash
+# Сборка проекта
 npm run build
-```
 
-Для запуска в production:
-```bash
+# Запуск в production
 npm run start:prod
+
+# Линтинг
+npm run lint
+
+# Форматирование кода
+npm run format
 ```
 
-## Структура проекта
+### Prisma команды
+```bash
+# Генерация Prisma клиента
+npx prisma generate
+
+# Создание новой миграции
+npx prisma migrate dev --name <имя-миграции>
+
+# Применение миграций
+npx prisma migrate deploy
+
+# Просмотр базы данных
+npx prisma studio
+
+# Сброс базы данных
+npx prisma migrate reset
+```
+
+### Тестирование
+```bash
+# Unit тесты
+npm run test
+
+# E2E тесты
+npm run test:e2e
+
+# Тестовое покрытие
+npm run test:cov
+
+# Тесты в watch режиме
+npm run test:watch
+```
+
+## 📁 Структура проекта
 
 ```
 src/
-├── prisma/           # Конфигурация Prisma
-├── modules/          # Модули приложения
-├── controllers/      # Контроллеры
-├── services/         # Сервисы
-└── main.ts          # Точка входа приложения
+├── auth/                 # Модуль авторизации
+│   ├── dto/             # Data Transfer Objects
+│   ├── guards/          # JWT Guard
+│   ├── strategies/      # JWT Strategy
+│   ├── auth.controller.ts
+│   ├── auth.service.ts
+│   └── auth.module.ts
+├── businesses/          # Модуль бизнесов
+├── users/              # Модуль пользователей
+├── mail/               # Модуль отправки email
+│   ├── templates/      # HTML шаблоны
+│   ├── mail.service.ts
+│   └── mail.module.ts
+├── prisma/             # Prisma конфигурация
+├── config/             # Конфигурация безопасности
+├── app.module.ts       # Главный модуль
+└── main.ts            # Точка входа
 ```
 
-## Разработка
+## 📊 Swagger Documentation
 
-### Генерация Prisma клиента
+После запуска приложения документация API доступна по адресу:
+```
+http://localhost:3000/api
+```
+
+## 🔧 Конфигурация
+
+### Переменные окружения
+
+#### Обязательные:
+- `DATABASE_URL` - Строка подключения к PostgreSQL
+- `JWT_SECRET` - Секретный ключ для JWT
+- `JWT_EXPIRES_IN` - Время жизни JWT токена (по умолчанию: 7d)
+- `NODE_ENV` - Окружение (development/production)
+- `PORT` - Порт приложения (по умолчанию: 3000)
+
+#### Опциональные (для email):
+- `MAIL_HOST` - SMTP хост (например: smtp.gmail.com)
+- `MAIL_PORT` - SMTP порт (например: 587)
+- `MAIL_USER` - Email для отправки
+- `MAIL_PASS` - Пароль для email (App Password для Gmail)
+- `MAIL_FROM` - От кого отправляются письма
+- `FRONTEND_URL` - URL фронтенда для ссылок в email
+
+## 🐛 Troubleshooting
+
+### Проблемы с базой данных
 ```bash
-npx prisma generate
+# Проверка подключения
+npx prisma db pull --print
+
+# Сброс и пересоздание
+npx prisma migrate reset
 ```
 
-### Создание новой миграции
-```bash
-npx prisma migrate dev --name <имя-миграции>
-```
+### Проблемы с JWT
+- Убедитесь, что JWT_SECRET установлен
+- Проверьте время жизни токена
 
-### Просмотр базы данных
-```bash
-npx prisma studio
-```
+### Проблемы с email (если используется)
+- Убедитесь, что SMTP настройки корректны
+- Для Gmail используйте App Password
+- Проверьте настройки firewall
 
-## Тестирование
+## 📝 Лицензия
 
-```bash
-# unit тесты
-npm run test
+MIT License
 
-# e2e тесты
-npm run test:e2e
-
-# тестовое покрытие
-npm run test:cov
-```
-
-## Лицензия
-
-MIT
+---
 
 <p align="center">
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
-
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
-
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
-
-```bash
-$ npm install
-```
-
-## Compile and run the project
-
-```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
-```
-
-## Run tests
-
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
-
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/mesto?schema=public"
-PORT=3000
+<p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>

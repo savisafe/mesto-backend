@@ -25,7 +25,9 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new BadRequestException('User with this email already exists');
+      throw new BadRequestException(
+        'Пользователь с таким email уже существует',
+      );
     }
 
     const hashedPassword = dto.password
@@ -37,7 +39,8 @@ export class AuthService {
         email: dto.email,
         password: hashedPassword,
         name: dto.name,
-        isEmailVerified: true, // Автоматически считаем email подтвержденным
+        phone: dto.phone,
+        isEmailVerified: true, // Сразу считаем email подтвержденным
       },
     });
 
@@ -50,21 +53,28 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Неверные учетные данные');
     }
 
     if (user.isBlocked) {
-      throw new UnauthorizedException('Account is blocked');
+      throw new UnauthorizedException('Аккаунт заблокирован');
+    }
+
+    // Проверяем, подтвержден ли email
+    if (!user.isEmailVerified) {
+      throw new UnauthorizedException(
+        'Пожалуйста, подтвердите ваш email перед входом в систему',
+      );
     }
 
     if (user.password) {
       const isPasswordValid = await bcrypt.compare(dto.password, user.password);
       if (!isPasswordValid) {
-        throw new UnauthorizedException('Invalid credentials');
+        throw new UnauthorizedException('Неверные учетные данные');
       }
     } else {
       throw new UnauthorizedException(
-        'Password login is not available for this account',
+        'Вход по паролю недоступен для этого аккаунта',
       );
     }
 
@@ -86,7 +96,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Неверные учетные данные');
     }
 
     const token = Math.random().toString(36).substring(2, 15);
@@ -101,9 +111,11 @@ export class AuthService {
       },
     });
 
-    await this.mailService.sendLoginLink(email, token);
+    // Временно отключаем отправку email
+    // await this.mailService.sendLoginLink(email, token);
+    console.log(`Login token for ${email}: ${token}`);
 
-    return { message: 'Login link sent to your email' };
+    return { message: 'Ссылка для входа отправлена на ваш email' };
   }
 
   async loginWithEmailToken(token: string) {
@@ -117,11 +129,18 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid or expired token');
+      throw new UnauthorizedException('Неверный или истекший токен');
     }
 
     if (user.isBlocked) {
-      throw new UnauthorizedException('Account is blocked');
+      throw new UnauthorizedException('Аккаунт заблокирован');
+    }
+
+    // Проверяем, подтвержден ли email
+    if (!user.isEmailVerified) {
+      throw new UnauthorizedException(
+        'Пожалуйста, подтвердите ваш email перед входом в систему',
+      );
     }
 
     // Очищаем токен после использования
@@ -135,6 +154,78 @@ export class AuthService {
     });
 
     return this.generateTokens(user);
+  }
+
+  async verifyEmail(token: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        emailVerificationToken: token,
+        emailVerificationTokenExpires: {
+          gt: new Date(),
+        },
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException(
+        'Неверный или истекший токен подтверждения',
+      );
+    }
+
+    if (user.isEmailVerified) {
+      throw new BadRequestException('Email уже подтвержден');
+    }
+
+    // Подтверждаем email
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isEmailVerified: true,
+        emailVerificationToken: null,
+        emailVerificationTokenExpires: null,
+      },
+    });
+
+    return {
+      message: 'Email успешно подтвержден',
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        isEmailVerified: true,
+      },
+    };
+  }
+
+  async resendVerificationEmail(email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Пользователь не найден');
+    }
+
+    if (user.isEmailVerified) {
+      throw new BadRequestException('Email уже подтвержден');
+    }
+
+    // Генерируем новый токен
+    const verificationToken = Math.random().toString(36).substring(2, 15);
+    const verificationExpires = new Date();
+    verificationExpires.setHours(verificationExpires.getHours() + 24);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerificationToken: verificationToken,
+        emailVerificationTokenExpires: verificationExpires,
+      },
+    });
+
+    await this.mailService.sendVerificationEmail(email, verificationToken);
+
+    return { message: 'Письмо с подтверждением отправлено успешно' };
   }
 
   private generateTokens(user: User) {

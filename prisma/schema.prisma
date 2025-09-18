@@ -37,38 +37,38 @@ enum ItemType {
 // Здесь будут определены модели данных
 
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  password      String?  // Может быть null для входа через email
-  name          String
-  about         String?
-  avatar        String?
-  role          UserRole @default(OWNER)
-  lastLoginAt   DateTime?
-  loginAttempts Int      @default(0)
-  isBlocked     Boolean  @default(false)
-  isEmailVerified Boolean @default(false)
-  emailVerificationToken String?
+  id                            String    @id @default(uuid())
+  email                         String    @unique
+  password                      String?
+  name                          String
+  phone                         String?
+  about                         String?
+  avatar                        String?
+  role                          UserRole  @default(OWNER)
+  lastLoginAt                   DateTime?
+  loginAttempts                 Int       @default(0)
+  isBlocked                     Boolean   @default(false)
+  isEmailVerified               Boolean   @default(false)
+  emailVerificationToken        String?
   emailVerificationTokenExpires DateTime?
-  passwordResetToken String?
-  passwordResetTokenExpires DateTime?
-  emailLoginToken String?
-  emailLoginTokenExpires DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  passwordResetToken            String?
+  passwordResetTokenExpires     DateTime?
+  emailLoginToken               String?
+  emailLoginTokenExpires        DateTime?
+  createdAt                     DateTime  @default(now())
+  updatedAt                     DateTime  @updatedAt
 
   // Связи с бизнесами
   ownedBusinesses    Business[] @relation("BusinessOwner")
   managedBusinesses  Business[] @relation("BusinessManager")
   employeeBusinesses Business[] @relation("BusinessEmployee")
 
-  // Связь с клиентской базой
   clientBase ClientBase?
 
-  // Связь с заказами
-  orders    Order[]
+  orders Order[]
 
   @@index([email, role])
+  @@index([phone])
   @@index([lastLoginAt])
   @@index([emailVerificationToken])
   @@index([passwordResetToken])
@@ -85,18 +85,16 @@ model Business {
   updatedAt   DateTime @updatedAt
 
   // Связи с пользователями
-  ownerId     String
-  owner       User     @relation("BusinessOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  
-  managers    User[]   @relation("BusinessManager")
-  employees   User[]   @relation("BusinessEmployee")
+  ownerId String
+  owner   User   @relation("BusinessOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
-  // Связь с клиентской базой
-  clientBase  ClientBase[]
+  managers  User[] @relation("BusinessManager")
+  employees User[] @relation("BusinessEmployee")
 
-  // Связи с товарами и услугами
-  products    Product[]
-  services    Service[]
+  clientBase ClientBase[]
+
+  products Product[]
+  services Service[]
 
   @@index([name])
   @@index([isActive])
@@ -104,22 +102,21 @@ model Business {
 }
 
 model ClientBase {
-  id            String   @id @default(uuid())
-  name          String
-  phoneNumber   String
-  firstOrderAt  DateTime?
-  lastOrderAt   DateTime?
-  orderHistory  Json?    // История заказов в формате JSON
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String    @id @default(uuid())
+  name         String
+  phoneNumber  String
+  firstOrderAt DateTime?
+  lastOrderAt  DateTime?
+  orderHistory Json?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  // Связи
-  userId        String   @unique
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  businessId    String
-  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([phoneNumber])
   @@index([isActive])
@@ -127,17 +124,16 @@ model ClientBase {
 }
 
 model Order {
-  id          String      @id @default(uuid())
-  total       Decimal     @db.Decimal(10, 2)
-  status      OrderStatus @default(PENDING)
-  notes       String?     // Дополнительные заметки к заказу
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id        String      @id @default(uuid())
+  total     Decimal     @db.Decimal(10, 2)
+  status    OrderStatus @default(PENDING)
+  notes     String? // Дополнительные заметки к заказу
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
-  // Связи
-  userId      String
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items       OrderItem[]
+  userId String
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items  OrderItem[]
 
   @@index([status, createdAt])
   @@index([userId])
@@ -145,23 +141,23 @@ model Order {
 }
 
 model OrderItem {
-  id          String    @id @default(uuid())
-  itemType    ItemType
-  itemId      String    // Общее поле для ID товара или услуги
-  isUpsell    Boolean   @default(false)
-  price       Decimal   @db.Decimal(10, 2)
-  quantity    Int       @default(1)
-  notes       String?   // Дополнительные заметки к элементу заказа
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String   @id @default(uuid())
+  itemType  ItemType
+  itemId    String // Общее поле для ID товара или услуги
+  isUpsell  Boolean  @default(false)
+  price     Decimal  @db.Decimal(10, 2)
+  quantity  Int      @default(1)
+  notes     String? // Дополнительные заметки к элементу заказа
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Связи
-  orderId     String
-  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
   // Полиморфные связи с Product или Service
-  product     Product?  @relation(fields: [itemId], references: [id], map: "OrderItem_productId_fkey")
-  service     Service?  @relation(fields: [itemId], references: [id], map: "OrderItem_serviceId_fkey")
+  product Product? @relation(fields: [itemId], references: [id], map: "OrderItem_productId_fkey")
+  service Service? @relation(fields: [itemId], references: [id], map: "OrderItem_serviceId_fkey")
 
   @@index([orderId, itemType])
   @@index([itemId])
@@ -169,17 +165,17 @@ model OrderItem {
 }
 
 model Product {
-  id          String      @id @default(uuid())
-  name        String
-  basePrice   Decimal     @db.Decimal(10, 2)
-  isActive    Boolean     @default(true)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id        String   @id @default(uuid())
+  name      String
+  basePrice Decimal  @db.Decimal(10, 2)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Связи
-  businessId  String
-  business    Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  orderItems  OrderItem[]
+  businessId String
+  business   Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
 
   @@index([name, businessId])
   @@index([isActive])
@@ -187,18 +183,18 @@ model Product {
 }
 
 model Service {
-  id          String      @id @default(uuid())
-  name        String
-  basePrice   Decimal     @db.Decimal(10, 2)
-  duration    Int         // Длительность в минутах
-  isActive    Boolean     @default(true)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id        String   @id @default(uuid())
+  name      String
+  basePrice Decimal  @db.Decimal(10, 2)
+  duration  Int // Длительность в минутах
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Связи
-  businessId  String
-  business    Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  orderItems  OrderItem[]
+  businessId String
+  business   Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
 
   @@index([name, businessId])
   @@index([isActive])

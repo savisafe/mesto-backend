@@ -6,14 +6,17 @@ export class LoginDto {
     example: 'user@example.com',
     description: 'Email пользователя',
   })
-  @IsEmail()
+  @IsEmail(
+    {},
+    { message: 'Email должен быть корректным адресом электронной почты' },
+  )
   email: string;
 
   @ApiProperty({
     example: 'password123',
     description: 'Пароль пользователя',
   })
-  @IsString()
-  @MinLength(6)
+  @IsString({ message: 'Пароль должен быть строкой' })
+  @MinLength(6, { message: 'Пароль должен содержать минимум 6 символов' })
   password: string;
 }

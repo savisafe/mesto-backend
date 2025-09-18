@@ -8,6 +8,8 @@ import {
   Delete,
   UseGuards,
   Request,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { BusinessesService } from './businesses.service';
@@ -23,8 +25,11 @@ export class BusinessesController {
   constructor(private readonly businessesService: BusinessesService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a new business' })
-  @ApiResponse({ status: 201, description: 'Business successfully created' })
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Создание нового бизнеса' })
+  @ApiResponse({ status: 201, description: 'Бизнес успешно создан' })
+  @ApiResponse({ status: 400, description: 'Ошибка валидации' })
+  @ApiResponse({ status: 401, description: 'Неавторизованный доступ' })
   create(
     @Request() req: { user: { id: string } },
     @Body() createBusinessDto: CreateBusinessDto,
@@ -33,24 +38,31 @@ export class BusinessesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all businesses for the current user' })
-  @ApiResponse({ status: 200, description: 'Return all businesses' })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Получение всех бизнесов текущего пользователя' })
+  @ApiResponse({ status: 200, description: 'Возвращает все бизнесы' })
+  @ApiResponse({ status: 401, description: 'Неавторизованный доступ' })
   findAll(@Request() req: { user: { id: string } }) {
     return this.businessesService.findAll(req.user.id);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get a business by id' })
-  @ApiResponse({ status: 200, description: 'Return the business' })
-  @ApiResponse({ status: 404, description: 'Business not found' })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Получение бизнеса по ID' })
+  @ApiResponse({ status: 200, description: 'Возвращает бизнес' })
+  @ApiResponse({ status: 404, description: 'Бизнес не найден' })
+  @ApiResponse({ status: 401, description: 'Неавторизованный доступ' })
   findOne(@Request() req: { user: { id: string } }, @Param('id') id: string) {
     return this.businessesService.findOne(req.user.id, id);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update a business' })
-  @ApiResponse({ status: 200, description: 'Business successfully updated' })
-  @ApiResponse({ status: 404, description: 'Business not found' })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Обновление бизнеса' })
+  @ApiResponse({ status: 200, description: 'Бизнес успешно обновлен' })
+  @ApiResponse({ status: 404, description: 'Бизнес не найден' })
+  @ApiResponse({ status: 400, description: 'Ошибка валидации' })
+  @ApiResponse({ status: 401, description: 'Неавторизованный доступ' })
   update(
     @Request() req: { user: { id: string } },
     @Param('id') id: string,
@@ -60,9 +72,11 @@ export class BusinessesController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete a business' })
-  @ApiResponse({ status: 200, description: 'Business successfully deleted' })
-  @ApiResponse({ status: 404, description: 'Business not found' })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Удаление бизнеса' })
+  @ApiResponse({ status: 200, description: 'Бизнес успешно удален' })
+  @ApiResponse({ status: 404, description: 'Бизнес не найден' })
+  @ApiResponse({ status: 401, description: 'Неавторизованный доступ' })
   remove(@Request() req: { user: { id: string } }, @Param('id') id: string) {
     return this.businessesService.remove(req.user.id, id);
   }

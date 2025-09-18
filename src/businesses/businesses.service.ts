@@ -107,7 +107,7 @@ export class BusinessesService {
     });
 
     if (!business) {
-      throw new NotFoundException('Business not found');
+      throw new NotFoundException('Бизнес не найден');
     }
 
     // Проверяем, имеет ли пользователь доступ к бизнесу
@@ -116,7 +116,7 @@ export class BusinessesService {
       !business.managers.some(manager => manager.id === userId) &&
       !business.employees.some(employee => employee.id === userId)
     ) {
-      throw new ForbiddenException('You do not have access to this business');
+      throw new ForbiddenException('У вас нет доступа к этому бизнесу');
     }
 
     return business;
@@ -127,7 +127,9 @@ export class BusinessesService {
 
     // Только владелец может редактировать бизнес
     if (business.ownerId !== userId) {
-      throw new ForbiddenException('Only the owner can update the business');
+      throw new ForbiddenException(
+        'Только владелец может редактировать бизнес',
+      );
     }
 
     return this.prisma.business.update({
@@ -164,11 +166,13 @@ export class BusinessesService {
 
     // Только владелец может удалить бизнес
     if (business.ownerId !== userId) {
-      throw new ForbiddenException('Only the owner can delete the business');
+      throw new ForbiddenException('Только владелец может удалить бизнес');
     }
 
-    return this.prisma.business.delete({
+    await this.prisma.business.delete({
       where: { id },
     });
+
+    return { message: 'Бизнес успешно удален' };
   }
 }
